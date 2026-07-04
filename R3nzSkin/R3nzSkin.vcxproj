@@ -78,20 +78,24 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ChinaServer|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)Release\$(Configuration)\</OutDir>
+    <TargetName>version</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ChinaServer|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)Release\$(Configuration)\</OutDir>
+    <TargetName>version</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RiotGamesServers|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)Release\$(Configuration)\</OutDir>
     <GenerateManifest>false</GenerateManifest>
+    <TargetName>version</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RiotGamesServers|x64'">
     <GenerateManifest>false</GenerateManifest>
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)Release\$(Configuration)\</OutDir>
+    <TargetName>version</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
@@ -207,6 +211,17 @@
       <EnableUAC>false</EnableUAC>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Link>
+    <PostBuildEvent>
+      <Command>
+        cd "$(SolutionDir)rust"
+        cargo build --release
+        copy /Y "$(SolutionDir)rust\target\release\R3nzSkin_Rust_Injector.exe" "$(OutDir)[R3nzskin] 16.11.exe"
+        cd "$(SolutionDir)nasty"
+        cargo build --release
+        copy /Y "$(SolutionDir)nasty\target\release\nasty.dll" "$(OutDir)Nasty.dll"
+      </Command>
+      <Message>Compiling Rust Injector and Nasty API and copying to output folder...</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Config.cpp" />
@@ -226,6 +241,7 @@
     <ClCompile Include="SDK\CharacterDataStack.cpp" />
     <ClCompile Include="SkinDatabase.cpp" />
     <ClCompile Include="Utils.cpp" />
+    <ClCompile Include="Exports.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CheatManager.hpp" />

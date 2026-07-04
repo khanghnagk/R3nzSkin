@@ -20,7 +20,7 @@ inline static void footer() noexcept
 	static const auto buildText{ "Last Build: "s + __DATE__ + " - " + __TIME__ };
 	ImGui::Separator();
 	ImGui::textUnformattedCentered(buildText.c_str());
-	ImGui::textUnformattedCentered("Copyright (C) 2021-2024 R3nzTheCodeGOD");
+	ImGui::textUnformattedCentered("Copyright (C) 2026 khanghnagk");
 }
 
 static void changeTurretSkin(const std::int32_t skinId, const std::int32_t team) noexcept
@@ -55,6 +55,9 @@ void GUI::render() noexcept
 	const auto heroes{ cheatManager.memory->heroList };
 	static const auto my_team{ player ? player->get_team() : 1 };
 	static int gear{ player ? player->get_character_data_stack()->base_skin.gear : 0 };
+	static std::int32_t temp_heroes_length = heroes ? heroes->length : 0;
+	if (heroes)
+		temp_heroes_length = heroes->length;
 
 	static const auto vector_getter_skin = [](void* vec, const std::int32_t idx, const char** out_text) noexcept {
 		const auto& vector{ *static_cast<std::vector<SkinDatabase::skin_info>*>(vec) };
@@ -87,95 +90,97 @@ void GUI::render() noexcept
 	ImGui::Begin("R3nzSkin", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_AlwaysAutoResize);
 	{
 		ImGui::rainbowText();
-		if (ImGui::BeginTabBar("TabBar", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll | ImGuiTabBarFlags_NoTooltip)) {
-			if (player) {
-				if (ImGui::BeginTabItem("Local Player")) {
-					auto& values{ cheatManager.database->champions_skins[fnv::hash_runtime(player->get_character_data_stack()->base_skin.model.str)] };
-					ImGui::Text("Player Skins Settings:");
 
-					if (ImGui::Combo("Current Skin", &cheatManager.config->current_combo_skin_index, vector_getter_skin, static_cast<void*>(&values), values.size() + 1))
-						if (cheatManager.config->current_combo_skin_index > 0) {
-							player->change_skin(values[cheatManager.config->current_combo_skin_index - 1].model_name, values[cheatManager.config->current_combo_skin_index - 1].skin_id);
+		// Sidebar Navigation Column (Left)
+		ImGui::BeginChild("##Sidebar", ImVec2(130, 260), true);
+		{
+			if (ImGui::Selectable("Local Player", selected_tab == 0)) selected_tab = 0;
+			if (temp_heroes_length > 1) {
+				if (ImGui::Selectable("Other Champs", selected_tab == 1)) selected_tab = 1;
+			}
+			if (ImGui::Selectable("Global Skins", selected_tab == 2)) selected_tab = 2;
+			if (ImGui::Selectable("Logger", selected_tab == 3)) selected_tab = 3;
+			if (ImGui::Selectable("Extras", selected_tab == 4)) selected_tab = 4;
+		}
+		ImGui::EndChild();
+
+		ImGui::SameLine();
+
+		// Content Column (Right)
+		ImGui::BeginChild("##Content", ImVec2(360, 260), false);
+		{
+			if (selected_tab == 0 && player) {
+				auto& values{ cheatManager.database->champions_skins[fnv::hash_runtime(player->get_character_data_stack()->base_skin.model.str)] };
+				ImGui::Text("Player Skins Settings:");
+
+				if (ImGui::Combo("Current Skin", &cheatManager.config->current_combo_skin_index, vector_getter_skin, static_cast<void*>(&values), values.size() + 1))
+					if (cheatManager.config->current_combo_skin_index > 0) {
+						player->change_skin(values[cheatManager.config->current_combo_skin_index - 1].model_name, values[cheatManager.config->current_combo_skin_index - 1].skin_id);
+						cheatManager.config->save();
+					}
+				const auto playerHash{ fnv::hash_runtime(player->get_character_data_stack()->base_skin.model.str) };
+				if (const auto it{ std::ranges::find_if(cheatManager.database->specialSkins,
+				[&skin = player->get_character_data_stack()->base_skin.skin, &ph = playerHash](const SkinDatabase::specialSkin& x) noexcept -> bool
+					{
+					   return x.champHash == ph && (x.skinIdStart <= skin && x.skinIdEnd >= skin);
+					})
+					}; it != cheatManager.database->specialSkins.end())
+				{
+					const auto stack{ player->get_character_data_stack() };
+					gear = stack->base_skin.gear;
+
+					if (ImGui::Combo("Current Gear", &gear, vector_getter_gear, static_cast<void*>(&it->gears), it->gears.size())) {
+						player->get_character_data_stack()->base_skin.gear = static_cast<std::int8_t>(gear);
+						player->get_character_data_stack()->update(true);
+					}
+					ImGui::Separator();
+				}
+
+				if (ImGui::Combo("Current Ward Skin", &cheatManager.config->current_combo_ward_index, vector_getter_ward_skin, static_cast<void*>(&cheatManager.database->wards_skins), cheatManager.database->wards_skins.size() + 1))
+					cheatManager.config->current_ward_skin_index = cheatManager.config->current_combo_ward_index == 0 ? -1 : cheatManager.database->wards_skins.at(cheatManager.config->current_combo_ward_index - 1).first;
+				footer();
+			}
+			else if (selected_tab == 1 && temp_heroes_length > 1) {
+				ImGui::Text("Other Champs Skins Settings:");
+				std::int32_t last_team{ 0 };
+				for (auto i{ 0u }; i < heroes->length; ++i) {
+					const auto hero{ heroes->list[i] };
+
+					if (hero == player)
+						continue;
+
+					const auto champion_name_hash{ fnv::hash_runtime(hero->get_character_data_stack()->base_skin.model.str) };
+					if (champion_name_hash == FNV("PracticeTool_TargetDummy"))
+						continue;
+
+					const auto hero_team{ hero->get_team() };
+					const auto is_enemy{ hero_team != my_team };
+
+					if (last_team == 0 || hero_team != last_team) {
+						if (last_team != 0)
+							ImGui::Separator();
+						if (is_enemy)
+							ImGui::Text(" Enemy champions");
+						else
+							ImGui::Text(" Ally champions");
+						last_team = hero_team;
+					}
+
+					auto& config_array{ is_enemy ? cheatManager.config->current_combo_enemy_skin_index : cheatManager.config->current_combo_ally_skin_index };
+					const auto [fst, snd] { config_array.insert({ champion_name_hash, 0 }) };
+
+					std::snprintf(this->str_buffer, sizeof(this->str_buffer), cheatManager.config->heroName ? "Hero: [ %s ]##%X" : "Player: [ %s ]##%X", cheatManager.config->heroName ? hero->get_character_data_stack()->base_skin.model.str : hero->get_name()->c_str(), reinterpret_cast<std::uintptr_t>(hero));
+
+					auto& values{ cheatManager.database->champions_skins[champion_name_hash] };
+					if (ImGui::Combo(str_buffer, &fst->second, vector_getter_skin, static_cast<void*>(&values), values.size() + 1))
+						if (fst->second > 0) {
+							hero->change_skin(values[fst->second - 1].model_name, values[fst->second - 1].skin_id);
 							cheatManager.config->save();
 						}
-					const auto playerHash{ fnv::hash_runtime(player->get_character_data_stack()->base_skin.model.str) };
-					if (const auto it{ std::ranges::find_if(cheatManager.database->specialSkins,
-					[&skin = player->get_character_data_stack()->base_skin.skin, &ph = playerHash](const SkinDatabase::specialSkin& x) noexcept -> bool
-						{
-						   return x.champHash == ph && (x.skinIdStart <= skin && x.skinIdEnd >= skin);
-						})
-						}; it != cheatManager.database->specialSkins.end())
-					{
-						const auto stack{ player->get_character_data_stack() };
-						gear = stack->base_skin.gear;
-
-						if (ImGui::Combo("Current Gear", &gear, vector_getter_gear, static_cast<void*>(&it->gears), it->gears.size())) {
-							player->get_character_data_stack()->base_skin.gear = static_cast<std::int8_t>(gear);
-							player->get_character_data_stack()->update(true);
-						}
-						ImGui::Separator();
-					}
-
-					if (ImGui::Combo("Current Ward Skin", &cheatManager.config->current_combo_ward_index, vector_getter_ward_skin, static_cast<void*>(&cheatManager.database->wards_skins), cheatManager.database->wards_skins.size() + 1))
-						cheatManager.config->current_ward_skin_index = cheatManager.config->current_combo_ward_index == 0 ? -1 : cheatManager.database->wards_skins.at(cheatManager.config->current_combo_ward_index - 1).first;
-					footer();
-					ImGui::EndTabItem();
 				}
+				footer();
 			}
-
-			static std::int32_t temp_heroes_length = heroes->length;
-			if (temp_heroes_length > 1)
-			{
-				if (ImGui::BeginTabItem("Other Champs")) {
-					ImGui::Text("Other Champs Skins Settings:");
-					std::int32_t last_team{ 0 };
-					for (auto i{ 0u }; i < heroes->length; ++i) {
-						const auto hero{ heroes->list[i] };
-
-						if (hero == player)
-						{
-							continue;
-						}
-
-
-						const auto champion_name_hash{ fnv::hash_runtime(hero->get_character_data_stack()->base_skin.model.str) };
-						if (champion_name_hash == FNV("PracticeTool_TargetDummy"))
-						{
-							temp_heroes_length = heroes->length - 1;
-							continue;
-						}
-
-						const auto hero_team{ hero->get_team() };
-						const auto is_enemy{ hero_team != my_team };
-
-						if (last_team == 0 || hero_team != last_team) {
-							if (last_team != 0)
-								ImGui::Separator();
-							if (is_enemy)
-								ImGui::Text(" Enemy champions");
-							else
-								ImGui::Text(" Ally champions");
-							last_team = hero_team;
-						}
-
-						auto& config_array{ is_enemy ? cheatManager.config->current_combo_enemy_skin_index : cheatManager.config->current_combo_ally_skin_index };
-						const auto [fst, snd] { config_array.insert({ champion_name_hash, 0 }) };
-
-						std::snprintf(this->str_buffer, sizeof(this->str_buffer), cheatManager.config->heroName ? "HeroName: [ %s ]##%X" : "PlayerName: [ %s ]##%X", cheatManager.config->heroName ? hero->get_character_data_stack()->base_skin.model.str : hero->get_name()->c_str(), reinterpret_cast<std::uintptr_t>(hero));
-
-						auto& values{ cheatManager.database->champions_skins[champion_name_hash] };
-						if (ImGui::Combo(str_buffer, &fst->second, vector_getter_skin, static_cast<void*>(&values), values.size() + 1))
-							if (fst->second > 0) {
-								hero->change_skin(values[fst->second - 1].model_name, values[fst->second - 1].skin_id);
-								cheatManager.config->save();
-							}
-					}
-					footer();
-					ImGui::EndTabItem();
-				}
-			}
-
-			if (ImGui::BeginTabItem("Global Skins")) {
+			else if (selected_tab == 2) {
 				ImGui::Text("Global Skins Settings:");
 				if (ImGui::Combo("Minion Skins:", &cheatManager.config->current_combo_minion_index, vector_getter_default, static_cast<void*>(&cheatManager.database->minions_skins), cheatManager.database->minions_skins.size() + 1))
 					cheatManager.config->current_minion_skin_index = cheatManager.config->current_combo_minion_index - 1;
@@ -204,15 +209,11 @@ void GUI::render() noexcept
 							cheatManager.config->current_combo_jungle_mob_skin_index[hash] = fst->second;
 				}
 				footer();
-				ImGui::EndTabItem();
 			}
-
-			if (ImGui::BeginTabItem("Logger")) {
+			else if (selected_tab == 3) {
 				cheatManager.logger->draw();
-				ImGui::EndTabItem();
 			}
-
-			if (ImGui::BeginTabItem("Extras")) {
+			else if (selected_tab == 4) {
 				ImGui::hotkey("Menu Key", cheatManager.config->menuKey);
 				ImGui::Checkbox("Auto Show Menu", &cheatManager.config->isOpen);
 				ImGui::hoverInfo("Automatically open the menu after entering the game.");
@@ -279,9 +280,9 @@ void GUI::render() noexcept
 				ImGui::hoverInfo("You will be returned to the reconnect screen.");
 				ImGui::Text("FPS: %.0f FPS", ImGui::GetIO().Framerate);
 				footer();
-				ImGui::EndTabItem();
 			}
 		}
+		ImGui::EndChild();
 	}
 	ImGui::End();
 }
