@@ -30,11 +30,12 @@ bool WINAPI HideThread(const HANDLE hThread) noexcept
 	return false;
 }
 
-__declspec(safebuffers) static void WINAPI DllAttach([[maybe_unused]] LPVOID lp) noexcept
+static unsigned int __stdcall DllAttach([[maybe_unused]] LPVOID lp) noexcept
 {
 	using namespace std::chrono_literals;
 
 	cheatManager.start();
+	
 	if (HideThread(::GetCurrentThread()))
 		cheatManager.logger->addLog("Thread Hidden!\n");
 
@@ -65,6 +66,7 @@ __declspec(safebuffers) static void WINAPI DllAttach([[maybe_unused]] LPVOID lp)
 		std::this_thread::sleep_for(250ms);
 
 	::ExitProcess(0u);
+	return 0u;
 }
 
 __declspec(safebuffers) BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD reason, [[maybe_unused]] LPVOID reserved)
@@ -74,10 +76,15 @@ __declspec(safebuffers) BOOL APIENTRY DllMain(const HMODULE hModule, const DWORD
 	if (reason != DLL_PROCESS_ATTACH)
 		return FALSE;
 
-	HideThread(hModule);
+	HMODULE tempModule;
+	::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+	                     reinterpret_cast<LPCWSTR>(hModule), &tempModule);
+
 	std::setlocale(LC_ALL, ".utf8");
 
-	::_beginthreadex(nullptr, 0u, reinterpret_cast<_beginthreadex_proc_type>(DllAttach), nullptr, 0u, nullptr);
-	::CloseHandle(hModule);
+	const auto hThread{ reinterpret_cast<HANDLE>(::_beginthreadex(nullptr, 0u, DllAttach, nullptr, 0u, nullptr)) };
+	if (hThread)
+		::CloseHandle(hThread);
+
 	return TRUE;
 }

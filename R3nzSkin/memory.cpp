@@ -14,6 +14,8 @@
 [[nodiscard]] static std::uint8_t* find_signature(const wchar_t* szModule, const char* szSignature) noexcept
 {
 	const auto module{ ::GetModuleHandleW(szModule) };
+	if (!module)
+		return nullptr;
 
 	using bytes_t = std::vector<std::int32_t>;
 
