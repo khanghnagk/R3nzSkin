@@ -215,12 +215,12 @@
       <Command>
         cd "$(SolutionDir)rust"
         cargo build --release
-        copy /Y "$(SolutionDir)rust\target\release\R3nzSkin_Rust_Injector.exe" "$(OutDir)[R3nzskin] 16.11.exe"
+        copy /Y "$(SolutionDir)rust\target\release\R3nzSkin_Rust_Injector.exe" "$(OutDir)[R3nzskin] 16.13.exe"
         cd "$(SolutionDir)nasty"
         cargo build --release
-        copy /Y "$(SolutionDir)nasty\target\release\nasty.dll" "$(OutDir)Nasty.dll"
+        copy /Y "$(SolutionDir)nasty\target\release\R3nzSkin.dll" "$(OutDir)R3nzSkin.dll"
       </Command>
-      <Message>Compiling Rust Injector and Nasty API and copying to output folder...</Message>
+      <Message>Compiling Rust Injector and Decoy DLL and copying to output folder...</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

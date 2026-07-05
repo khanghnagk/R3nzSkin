@@ -16,6 +16,18 @@ using namespace System::Net;
 
 int main([[maybe_unused]] array<String^>^ args)
 {
+	String^ exeDir = AppDomain::CurrentDomain->BaseDirectory;
+	String^ dllPath = exeDir + "R3nzSkin.dll";
+	if (!System::IO::File::Exists(dllPath)) {
+		MessageBox::Show(
+			"R3nzSkin.dll could not be found.\n\nExpected path:\n" + dllPath + "\n\nPlease make sure R3nzSkin.dll is in the same folder as the injector.",
+			"R3nzSkin Error",
+			MessageBoxButtons::OK,
+			MessageBoxIcon::Error
+		);
+		return EXIT_FAILURE;
+	}
+
 	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 	Injector::autoUpdate();
 	
