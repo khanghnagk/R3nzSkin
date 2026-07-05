@@ -1,4 +1,4 @@
-[English](README.md) | [Tiếng Việt](README_vi.md)
+[Tiếng Việt](README_vi.md) | [English](README.md) 
 
 # R3nzSkin - Rebuilt & Optimized Fork
 
